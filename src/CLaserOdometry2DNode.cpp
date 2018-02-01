@@ -220,7 +220,7 @@ void CLaserOdometry2DNode::publish()
   {
     //ROS_INFO("[rf2o] Publishing TF: [base_link] to [odom]");
     geometry_msgs::TransformStamped odom_trans;
-    odom_trans.header.stamp = ros::Time::now();
+    odom_trans.header.stamp = last_odom_time;
     odom_trans.header.frame_id = odom_frame_id;
     odom_trans.child_frame_id = base_frame_id;
     odom_trans.transform.translation.x = robot_pose_.translation()(0);
@@ -235,7 +235,7 @@ void CLaserOdometry2DNode::publish()
   //-------------------------------------------------
   //ROS_INFO("[rf2o] Publishing Odom Topic");
   nav_msgs::Odometry odom;
-  odom.header.stamp = ros::Time::now();
+  odom.header.stamp = last_odom_time;
   odom.header.frame_id = odom_frame_id;
   //set the position
   odom.pose.pose.position.x = robot_pose_.translation()(0);
