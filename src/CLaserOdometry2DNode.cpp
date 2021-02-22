@@ -36,7 +36,7 @@ public:
 
 public:
 
-  bool publish_tf, new_scan_available;
+  bool publish_tf, publish_inverse_tf, new_scan_available;
 
   double freq;
 
@@ -77,6 +77,7 @@ CLaserOdometry2DNode::CLaserOdometry2DNode() :
   pn.param<std::string>("base_frame_id", base_frame_id, "/base_link");
   pn.param<std::string>("odom_frame_id", odom_frame_id, "/odom");
   pn.param<bool>("publish_tf", publish_tf, true);
+  pn.param<bool>("publish_inverse_tf", publish_inverse_tf, false);
   pn.param<std::string>("init_pose_from_topic", init_pose_from_topic, "/base_pose_ground_truth");
   pn.param<double>("freq",freq,10.0);
   pn.param<bool>("verbose", verbose, true);
@@ -168,7 +169,7 @@ void CLaserOdometry2DNode::process(const ros::TimerEvent&)
   }
   else
   {
-    ROS_WARN("Waiting for laser_scans....") ;
+    ROS_DEBUG("Waiting for laser_scans....") ;
   }
 }
 
@@ -215,19 +216,36 @@ void CLaserOdometry2DNode::publish()
 {
   //first, we'll publish the odometry over tf
   //---------------------------------------
-  if (publish_tf)
+  if (publish_tf || publish_inverse_tf)
   {
-    //ROS_INFO("[rf2o] Publishing TF: [base_link] to [odom]");
-    geometry_msgs::TransformStamped odom_trans;
-    odom_trans.header.stamp = last_odom_time;
-    odom_trans.header.frame_id = odom_frame_id;
-    odom_trans.child_frame_id = base_frame_id;
-    odom_trans.transform.translation.x = robot_pose_.translation()(0);
-    odom_trans.transform.translation.y = robot_pose_.translation()(1);
-    odom_trans.transform.translation.z = 0.0;
-    odom_trans.transform.rotation = tf::createQuaternionMsgFromYaw(rf2o::getYaw(robot_pose_.rotation()));
-    //send the transform
-    odom_broadcaster.sendTransform(odom_trans);
+    if (!publish_inverse_tf)
+    {
+      //ROS_INFO("[rf2o] Publishing TF: [base_link] to [odom]");
+      geometry_msgs::TransformStamped odom_trans;
+      odom_trans.header.stamp = last_odom_time;
+      odom_trans.header.frame_id = odom_frame_id;
+      odom_trans.child_frame_id = base_frame_id;
+      odom_trans.transform.translation.x = robot_pose_.translation()(0);
+      odom_trans.transform.translation.y = robot_pose_.translation()(1);
+      odom_trans.transform.translation.z = 0.0;
+      odom_trans.transform.rotation = tf::createQuaternionMsgFromYaw(rf2o::getYaw(robot_pose_.rotation()));
+      //send the transform
+      odom_broadcaster.sendTransform(odom_trans);
+    } else {
+      Pose3d robot_pose_inverse_ = robot_pose_.inverse();
+
+      //ROS_INFO("[rf2o] Publishing TF: [base_link] to [odom]");
+      geometry_msgs::TransformStamped odom_trans;
+      odom_trans.header.stamp = last_odom_time;
+      odom_trans.header.frame_id = base_frame_id;
+      odom_trans.child_frame_id = odom_frame_id;
+      odom_trans.transform.translation.x = robot_pose_inverse_.translation()(0);
+      odom_trans.transform.translation.y = robot_pose_inverse_.translation()(1);
+      odom_trans.transform.translation.z = 0.0;
+      odom_trans.transform.rotation = tf::createQuaternionMsgFromYaw(rf2o::getYaw(robot_pose_inverse_.rotation()));
+      //send the transform
+      odom_broadcaster.sendTransform(odom_trans);
+    }
   }
 
   //next, we'll publish the odometry message over ROS
