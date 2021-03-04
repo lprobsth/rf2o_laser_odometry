@@ -861,7 +861,7 @@ bool CLaserOdometry2D::filterLevelSolution()
   //   //kai_b_fil_f(i,0) = (1.f*kai_b(i,0) + 0.f*kai_b_old_f(i,0))/(1.0f + 0.f);
   // }
 
-  // Unfiltered
+  // Disable the velocity fitler (commented code above) and output unfiltered velocities:
   Eigen::Matrix<float,3,1> kai_b_fil = kai_b;
 
   //Transform filtered speed to local reference frame and compute transformation
