@@ -64,6 +64,13 @@ void CLaserOdometry2D::init(const sensor_msgs::LaserScan& scan,
   ctf_levels = 5;                     // Coarse-to-Fine levels
   iter_irls  = 5;                      //Num iterations to solve iterative reweighted least squares
 
+  ROS_INFO_STREAM_COND(verbose, "[rf2o]\n"
+      "width:      " << width << "\n"
+      "cols:       " << cols << "\n"
+      "fovh:       " << fovh << "\n"
+      "ctf_levels: " << ctf_levels << "\n"
+      "iter_irls:  " << iter_irls << "\n");
+
   Pose3d robot_initial_pose = Pose3d::Identity();
 
   robot_initial_pose = Eigen::Quaterniond(initial_robot_pose.orientation.w,
@@ -806,6 +813,8 @@ void CLaserOdometry2D::performWarping()
 
 bool CLaserOdometry2D::filterLevelSolution()
 {
+#define DISABLE_VELOCITY_FILTER
+#ifndef DISABLE_VELOCITY_FILTER
   //		Calculate Eigenvalues and Eigenvectors
   //----------------------------------------------------------
   Eigen::SelfAdjointEigenSolver<Eigen::MatrixXf> eigensolver(cov_odo);
@@ -870,6 +879,12 @@ bool CLaserOdometry2D::filterLevelSolution()
   const float incrx = kai_loc_fil(0)/fps;
   const float incry = kai_loc_fil(1)/fps;
   const float rot   = kai_loc_fil(2)/fps;
+#else
+  //transformation
+  const float incrx = kai_loc_level_(0)/fps;
+  const float incry = kai_loc_level_(1)/fps;
+  const float rot   = kai_loc_level_(2)/fps;
+#endif
 
   transformations[level](0,0) = std::cos(rot);
   transformations[level](0,1) = -std::sin(rot);
