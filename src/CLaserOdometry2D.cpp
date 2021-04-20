@@ -917,7 +917,7 @@ void CLaserOdometry2D::PoseUpdate()
   {
     kai_loc_(2) = fps*std::acos(acu_trans(0,0))*rf2o::sign(acu_trans(1,0));
   }
-
+  kai_loc_(2) -= 0.00055 / 25.;
   //cout << endl << "Arc cos (incr tita): " << kai_loc_(2);
 
   float phi = rf2o::getYaw(laser_pose_.rotation());
