@@ -64,6 +64,13 @@ void CLaserOdometry2D::init(const sensor_msgs::LaserScan& scan,
   ctf_levels = 5;                     // Coarse-to-Fine levels
   iter_irls  = 5;                      //Num iterations to solve iterative reweighted least squares
 
+  ROS_INFO_STREAM_COND(verbose, "[rf2o]\n"
+      "width:      " << width << "\n"
+      "cols:       " << cols << "\n"
+      "fovh:       " << fovh << "\n"
+      "ctf_levels: " << ctf_levels << "\n"
+      "iter_irls:  " << iter_irls << "\n");
+
   Pose3d robot_initial_pose = Pose3d::Identity();
 
   robot_initial_pose = Eigen::Quaterniond(initial_robot_pose.orientation.w,
@@ -806,6 +813,8 @@ void CLaserOdometry2D::performWarping()
 
 bool CLaserOdometry2D::filterLevelSolution()
 {
+#define DISABLE_VELOCITY_FILTER
+#ifndef DISABLE_VELOCITY_FILTER
   //		Calculate Eigenvalues and Eigenvectors
   //----------------------------------------------------------
   Eigen::SelfAdjointEigenSolver<Eigen::MatrixXf> eigensolver(cov_odo);
@@ -825,44 +834,41 @@ bool CLaserOdometry2D::filterLevelSolution()
 
   assert((kai_loc_level_).isApprox(Bii*kai_b, 1e-5) && "Ax=b has no solution." && __LINE__);
 
-  // //Second, we have to describe both the old linear and angular speeds in the "eigenvector" basis too
-  // //-------------------------------------------------------------------------------------------------
-  // MatrixS31 kai_loc_sub;
+  //Second, we have to describe both the old linear and angular speeds in the "eigenvector" basis too
+  //-------------------------------------------------------------------------------------------------
+  MatrixS31 kai_loc_sub;
 
-  // //Important: we have to substract the solutions from previous levels
-  // Eigen::Matrix3f acu_trans;
-  // acu_trans.setIdentity();
-  // for (unsigned int i=0; i<level; i++)
-  //   acu_trans = transformations[i]*acu_trans;
+  //Important: we have to substract the solutions from previous levels
+  Eigen::Matrix3f acu_trans;
+  acu_trans.setIdentity();
+  for (unsigned int i=0; i<level; i++)
+    acu_trans = transformations[i]*acu_trans;
 
-  // kai_loc_sub(0) = -fps*acu_trans(0,2);
-  // kai_loc_sub(1) = -fps*acu_trans(1,2);
-  // if (acu_trans(0,0) > 1.f)
-  //   kai_loc_sub(2) = 0.f;
-  // else
-  // {
-  //   kai_loc_sub(2) = -fps*std::acos(acu_trans(0,0))*rf2o::sign(acu_trans(1,0));
-  // }
-  // kai_loc_sub += kai_loc_old_;
+  kai_loc_sub(0) = -fps*acu_trans(0,2);
+  kai_loc_sub(1) = -fps*acu_trans(1,2);
+  if (acu_trans(0,0) > 1.f)
+    kai_loc_sub(2) = 0.f;
+  else
+  {
+    kai_loc_sub(2) = -fps*std::acos(acu_trans(0,0))*rf2o::sign(acu_trans(1,0));
+  }
+  kai_loc_sub += kai_loc_old_;
 
-  // Eigen::Matrix<float,3,1> kai_b_old;
-  // kai_b_old = Bii.colPivHouseholderQr().solve(kai_loc_sub);
+  Eigen::Matrix<float,3,1> kai_b_old;
+  kai_b_old = Bii.colPivHouseholderQr().solve(kai_loc_sub);
 
-  // assert((kai_loc_sub).isApprox(Bii*kai_b_old, 1e-5) && "Ax=b has no solution." && __LINE__);
+  assert((kai_loc_sub).isApprox(Bii*kai_b_old, 1e-5) && "Ax=b has no solution." && __LINE__);
 
-  // //Filter speed
-  // const float cf = 15e3f*std::exp(-float(int(level))),
-  //             df = 0.05f*std::exp(-float(int(level)));
+  //Filter speed
+  const float cf = 15e3f*std::exp(-float(int(level))),
+              df = 0.05f*std::exp(-float(int(level)));
 
-  // Eigen::Matrix<float,3,1> kai_b_fil;
-  // for (unsigned int i=0; i<3; i++)
-  // {
-  //   kai_b_fil(i) = (kai_b(i) + (cf*eigensolver.eigenvalues()(i,0) + df)*kai_b_old(i))/(1.f + cf*eigensolver.eigenvalues()(i,0) + df);
-  //   //kai_b_fil_f(i,0) = (1.f*kai_b(i,0) + 0.f*kai_b_old_f(i,0))/(1.0f + 0.f);
-  // }
-
-  // Disable the velocity fitler (commented code above) and output unfiltered velocities:
-  Eigen::Matrix<float,3,1> kai_b_fil = kai_b;
+  Eigen::Matrix<float,3,1> kai_b_fil;
+  for (unsigned int i=0; i<3; i++)
+  {
+    kai_b_fil(i) = (kai_b(i) + (cf*eigensolver.eigenvalues()(i,0) + df)*kai_b_old(i))/(1.f + cf*eigensolver.eigenvalues()(i,0) + df);
+    //kai_b_fil_f(i,0) = (1.f*kai_b(i,0) + 0.f*kai_b_old_f(i,0))/(1.0f + 0.f);
+  }
 
   //Transform filtered speed to local reference frame and compute transformation
   Eigen::Matrix<float, 3, 1> kai_loc_fil = Bii.inverse().colPivHouseholderQr().solve(kai_b_fil);
@@ -873,6 +879,12 @@ bool CLaserOdometry2D::filterLevelSolution()
   const float incrx = kai_loc_fil(0)/fps;
   const float incry = kai_loc_fil(1)/fps;
   const float rot   = kai_loc_fil(2)/fps;
+#else
+  //transformation
+  const float incrx = kai_loc_level_(0)/fps;
+  const float incry = kai_loc_level_(1)/fps;
+  const float rot   = kai_loc_level_(2)/fps;
+#endif
 
   transformations[level](0,0) = std::cos(rot);
   transformations[level](0,1) = -std::sin(rot);
