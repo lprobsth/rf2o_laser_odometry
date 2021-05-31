@@ -86,7 +86,7 @@ void CLaserOdometry2D::init(const sensor_msgs::LaserScan& scan,
 
   //Set the initial pose
   laser_pose_    = robot_initial_pose * laser_pose_on_robot_;
-  laser_oldpose_ = laser_oldpose_;
+  laser_oldpose_ = laser_pose_;
 
   // Init module (internal)
   //------------------------
@@ -938,7 +938,15 @@ void CLaserOdometry2D::PoseUpdate()
   pose_aux_2D.translation()(0) = acu_trans(0,2);
   pose_aux_2D.translation()(1) = acu_trans(1,2);
 
+#ifdef DISABLE_VELOCITY_FILTER
+  // Skip integration if scan matching failed and acu_trans, kai_loc_
+  // and kai_abs_ have NaN values
+  if (pose_aux_2D.matrix().array().isFinite().all()) {
+    laser_pose_ = laser_pose_ * pose_aux_2D;
+  }
+#else
   laser_pose_ = laser_pose_ * pose_aux_2D;
+#endif
 
   last_increment_ = pose_aux_2D;
 
