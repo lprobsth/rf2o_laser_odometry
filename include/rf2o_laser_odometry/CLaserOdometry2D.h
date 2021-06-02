@@ -152,7 +152,6 @@ protected:
   Pose3d laser_pose_on_robot_;
   Pose3d laser_pose_on_robot_inv_;
   Pose3d laser_pose_;
-  Pose3d laser_oldpose_;
   Pose3d robot_pose_;
   Pose3d robot_oldpose_;
 

@@ -31,7 +31,6 @@ CLaserOdometry2D::CLaserOdometry2D() :
   laser_pose_on_robot_(Pose3d::Identity()),
   laser_pose_on_robot_inv_(Pose3d::Identity()),
   laser_pose_(Pose3d::Identity()),
-  laser_oldpose_(Pose3d::Identity()),
   robot_pose_(Pose3d::Identity()),
   robot_oldpose_(Pose3d::Identity())
 {
@@ -86,7 +85,6 @@ void CLaserOdometry2D::init(const sensor_msgs::LaserScan& scan,
 
   //Set the initial pose
   laser_pose_    = robot_initial_pose * laser_pose_on_robot_;
-  laser_oldpose_ = laser_pose_;
 
   // Init module (internal)
   //------------------------
@@ -730,7 +728,6 @@ void CLaserOdometry2D::Reset(const Pose3d& ini_pose/*, CObservation2DRangeScan s
 {
   //Set the initial pose
   laser_pose_    = ini_pose;
-  laser_oldpose_ = ini_pose;
 
   //readLaser(scan);
   createImagePyramid();
@@ -929,7 +926,6 @@ void CLaserOdometry2D::PoseUpdate()
 
   //						Update poses
   //-------------------------------------------------------
-  laser_oldpose_ = laser_pose_;
 
   //  Eigen::Matrix3f aux_acu = acu_trans;
   Pose3d pose_aux_2D = Pose3d::Identity();
